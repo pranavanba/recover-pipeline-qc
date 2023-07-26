@@ -2,7 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
-
 /ce-input-data/
 /adult/
 /pediatric/
+SYNAPSE_METADATA_MANIFEST.tsv
