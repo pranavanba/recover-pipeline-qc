@@ -13,10 +13,10 @@ pediatric_i <- 1
 
 for (p in data$path) {
   if (grepl('adult', p)) {
-    unzip(p, exdir = paste0('adult/', adult_i))
+    unzip(p, exdir = paste0('input_data_unzipped/adult/', adult_i))
     adult_i <- adult_i + 1
   } else if (grepl('pediatric', p)) {
-    unzip(p, exdir = paste0('pediatric/', pediatric_i))
+    unzip(p, exdir = paste0('input_data_unzipped/pediatric/', pediatric_i))
     pediatric_i <- pediatric_i + 1
   }
 }
@@ -66,3 +66,19 @@ get_unique_fitbit_devices <- function(folder_path) {
 pids <- get_unique_participant_ids('./adult/1/')
 nrecs <- get_num_rows_per_file('./adult/2/')
 devices <- get_unique_fitbit_devices('./adult/1/')
+
+apply_function_to_subdirectories <- function(parent_folder_path, fun) {
+  subdirectories <- list.dirs(parent_folder_path, recursive = FALSE, full.names = TRUE)
+  results <- lapply(subdirectories, function(subdir) {
+    result <- fun(subdir)
+    return(result)
+  })
+  names(results) <- basename(subdirectories)
+  return(results)
+}
+
+parent_folder_path <- "./adult/"
+
+pids_adults <- apply_function_to_subdirectories(parent_folder_path, get_unique_participant_ids)
+nrecs_adults <- apply_function_to_subdirectories(parent_folder_path, get_num_rows_per_file)
+devices_adults <- apply_function_to_subdirectories(parent_folder_path, get_unique_fitbit_devices)
