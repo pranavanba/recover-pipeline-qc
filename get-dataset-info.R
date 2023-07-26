@@ -37,20 +37,14 @@ get_unique_participant_ids <- function(folder_path) {
 get_num_rows_per_file <- function(folder_path) {
   manifest_path <- file.path(folder_path, "Manifest.csv")
   manifest <- read.csv(manifest_path, stringsAsFactors = FALSE)
-  files_with_num_rows <- list()
   
-  json_files <- list.files(folder_path, pattern = "\\.json$", full.names = TRUE)
-  
-  for (file_path in json_files) {
-    file_basename <- sub("_[^_]*$", "", basename(file_path))
-    num_rows <- manifest[[file_basename]]
-    files_with_num_rows[[file_basename]] <- num_rows
-  }
+  exclude_columns <- c("ExportStartDate", "ExportEndDate", "ExportConfiguration", "ExcludedParticipantIdentifiers")
+  manifest_subset <- manifest[, !(names(manifest) %in% exclude_columns)]
   
   out <- 
-    files_with_num_rows %>% 
+    manifest_subset %>% 
+    t() %>% 
     tibble::enframe() %>% 
-    mutate(value = as.double(value)) %>% 
     rename(file = name, num_records = value)
   
   return(out)
@@ -70,5 +64,5 @@ get_unique_fitbit_devices <- function(folder_path) {
 }
 
 pids <- get_unique_participant_ids('./adult/1/')
-nrecs <- get_num_rows_per_file('./adult/1/')
+nrecs <- get_num_rows_per_file('./adult/2/')
 devices <- get_unique_fitbit_devices('./adult/1/')
