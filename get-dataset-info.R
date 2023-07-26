@@ -21,58 +21,53 @@ for (p in data$path) {
   }
 }
 
-get_info_from_folder <- function(folder_path, manifest_path) {
-  manifest <- read.csv(manifest_path, stringsAsFactors = FALSE)
-  
+get_unique_participant_ids <- function(folder_path) {
   unique_participant_ids <- character(0)
+  
+  enrolled_files <- list.files(folder_path, pattern = "EnrolledParticipants", full.names = TRUE)
+  
+  for (file_path in enrolled_files) {
+    data <- stream_in(con = file(file_path), flatten = TRUE)
+    unique_participant_ids <- union(unique_participant_ids, unique(data$ParticipantIdentifier))
+  }
+  
+  return(unique_participant_ids)
+}
+
+get_num_rows_per_file <- function(folder_path, manifest_path) {
+  manifest <- read.csv(manifest_path, stringsAsFactors = FALSE)
   files_with_num_rows <- list()
-  unique_fitbit_devices <- character(0)
   
   json_files <- list.files(folder_path, pattern = "\\.json$", full.names = TRUE)
   
   for (file_path in json_files) {
-    data <- stream_in(con=file(file_path), flatten = TRUE)
-    
     file_basename <- sub("_[^_]*$", "", basename(file_path))
-    
-    unique_participant_ids <- union(unique_participant_ids, unique(data$ParticipantIdentifier))
-    
     num_rows <- manifest[[file_basename]]
     files_with_num_rows[[file_basename]] <- num_rows
-    
-    if (file_basename == 'FitbitDevices') {
-      unique_fitbit_devices <- unique(data$Device)
-    }
   }
   
-  result <- list(
-    unique_participant_ids = unique_participant_ids,
-    files_with_num_rows = files_with_num_rows,
-    unique_fitbit_devices = unique_fitbit_devices
-  )
+  out <- 
+    files_with_num_rows %>% 
+    tibble::enframe() %>% 
+    mutate(value=as.double(value)) %>% 
+    rename(file=name, num_records=value)
   
-  return(result)
+  return(out)
 }
 
-folder_path <- './adult/1/'
-manifest_path <- './adult/1/Manifest.csv'
+get_unique_fitbit_devices <- function(folder_path) {
+  unique_fitbit_devices <- character(0)
+  
+  fitbit_files <- list.files(folder_path, pattern = "FitbitDevices", full.names = TRUE)
+  
+  for (file_path in fitbit_files) {
+    data <- stream_in(con = file(file_path), flatten = TRUE)
+    unique_fitbit_devices <- unique(data$Device)
+  }
+  
+  return(unique_fitbit_devices)
+}
 
-result <- get_info_from_folder(folder_path, manifest_path)
-
-# Extracting the results
-unique_participant_ids <- result$unique_participant_ids
-num_rows_per_file <- result$files_with_num_rows
-unique_fitbit_devices <- result$unique_fitbit_devices
-
-# Print the results
-print("Unique Participant Identifiers:")
-print(unique_participant_ids)
-
-print("Number of Rows per File:")
-print(num_rows_per_file %>% tibble::enframe())
-
-print("Unique Fitbit Devices:")
-print(unique_fitbit_devices)
-
-
-
+pids <- get_unique_participant_ids('./adult/1/')
+nrecs <- get_num_rows_per_file('./adult/1/', './adult/1/Manifest.csv')
+devices <- get_unique_fitbit_devices('./adult/1/')
