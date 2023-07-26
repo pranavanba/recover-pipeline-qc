@@ -1,6 +1,9 @@
 library(synapser)
 library(jsonlite)
 library(dplyr)
+library(purrr)
+library(lubridate)
+library(ggpubr)
 
 synLogin()
 
@@ -8,15 +11,18 @@ system('synapse get -r syn51406698')
 
 data <- read.delim('./ce-input-data/SYNAPSE_METADATA_MANIFEST.tsv')
 
+adults_folder_path <- './input_data_unzipped/adult/'
+pediatric_folder_path <- './input_data_unzipped/pediatric/'
+
 adult_i <- 1
 pediatric_i <- 1
 
 for (p in data$path) {
   if (grepl('adult', p)) {
-    unzip(p, exdir = paste0('input_data_unzipped/adult/', adult_i))
+    unzip(p, exdir = paste0(adults_folder_path, adult_i))
     adult_i <- adult_i + 1
   } else if (grepl('pediatric', p)) {
-    unzip(p, exdir = paste0('input_data_unzipped/pediatric/', pediatric_i))
+    unzip(p, exdir = paste0(pediatric_folder_path, pediatric_i))
     pediatric_i <- pediatric_i + 1
   }
 }
@@ -32,6 +38,24 @@ get_unique_participant_ids <- function(folder_path) {
   }
   
   return(unique_participant_ids)
+}
+
+get_unique_participant_ids_enroll_date <- function(folder_path) {
+  enrolled_files <- list.files(folder_path, pattern = "EnrolledParticipants.*\\.json$", full.names = TRUE)
+  
+  data_list <- lapply(enrolled_files, function(file_path) {
+    data <- stream_in(file(file_path), flatten = TRUE)
+    subset_data <- 
+      data[, c("ParticipantIdentifier", "EnrollmentDate"), drop = FALSE] %>% 
+      group_by(ParticipantIdentifier) %>% 
+      distinct() %>% 
+      ungroup()
+    return(subset_data)
+  })
+  
+  combined_data <- do.call(rbind, data_list)
+  
+  return(combined_data)
 }
 
 get_num_rows_per_file <- function(folder_path) {
@@ -63,10 +87,6 @@ get_unique_fitbit_devices <- function(folder_path) {
   return(unique_fitbit_devices)
 }
 
-pids <- get_unique_participant_ids('./adult/1/')
-nrecs <- get_num_rows_per_file('./adult/2/')
-devices <- get_unique_fitbit_devices('./adult/1/')
-
 apply_function_to_subdirectories <- function(parent_folder_path, fun) {
   subdirectories <- list.dirs(parent_folder_path, recursive = FALSE, full.names = TRUE)
   results <- lapply(subdirectories, function(subdir) {
@@ -77,8 +97,41 @@ apply_function_to_subdirectories <- function(parent_folder_path, fun) {
   return(results)
 }
 
-parent_folder_path <- "./adult/"
+pids_adults <- apply_function_to_subdirectories(adults_folder_path, get_unique_participant_ids)
+pids_enroll_adults <- 
+  apply_function_to_subdirectories(adults_folder_path, get_unique_participant_ids_enroll_date) %>% 
+  bind_rows(.id = "list_name")
+nrecs_adults <- apply_function_to_subdirectories(adults_folder_path, get_num_rows_per_file)
+devices_adults <- apply_function_to_subdirectories(adults_folder_path, get_unique_fitbit_devices)
 
-pids_adults <- apply_function_to_subdirectories(parent_folder_path, get_unique_participant_ids)
-nrecs_adults <- apply_function_to_subdirectories(parent_folder_path, get_num_rows_per_file)
-devices_adults <- apply_function_to_subdirectories(parent_folder_path, get_unique_fitbit_devices)
+pids_ped <- apply_function_to_subdirectories(pediatric_folder_path, get_unique_participant_ids)
+pids_enroll_ped <- 
+  apply_function_to_subdirectories(pediatric_folder_path, get_unique_participant_ids_enroll_date) %>% 
+  bind_rows(.id = "list_name")
+nrecs_ped <- apply_function_to_subdirectories(pediatric_folder_path, get_num_rows_per_file)
+devices_ped <- apply_function_to_subdirectories(pediatric_folder_path, get_unique_fitbit_devices)
+
+pid_cumulative_counts_adults <- 
+  pids_enroll_adults %>% 
+  group_by(ParticipantIdentifier, EnrollmentDate) %>% 
+  distinct(ParticipantIdentifier, EnrollmentDate, .keep_all = T) %>% 
+  ungroup() %>% 
+  mutate(EnrollmentDate=lubridate::date(EnrollmentDate)) %>% 
+  group_by(EnrollmentDate) %>%
+  summarise(count = n_distinct(ParticipantIdentifier)) %>%
+  mutate(running_total = cumsum(count))
+
+ggplot(pid_cumulative_counts_adults, aes(x = EnrollmentDate, y = running_total)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Date", y = "Cumulative Count of Unique Participant IDs") +
+  ggtitle("Enrollment Over Time")
+
+ggline(data = pid_cumulative_counts_adults, 
+       x = 'EnrollmentDate', 
+       y = 'running_total',
+       xlab = "Date",
+       ylab = "Cumulative Count of Unique Participant IDs",
+       title = "Enrollment Over Time") + grids()
+
+
