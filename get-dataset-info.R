@@ -34,7 +34,8 @@ get_unique_participant_ids <- function(folder_path) {
   return(unique_participant_ids)
 }
 
-get_num_rows_per_file <- function(folder_path, manifest_path) {
+get_num_rows_per_file <- function(folder_path) {
+  manifest_path <- file.path(folder_path, "Manifest.csv")
   manifest <- read.csv(manifest_path, stringsAsFactors = FALSE)
   files_with_num_rows <- list()
   
@@ -49,8 +50,8 @@ get_num_rows_per_file <- function(folder_path, manifest_path) {
   out <- 
     files_with_num_rows %>% 
     tibble::enframe() %>% 
-    mutate(value=as.double(value)) %>% 
-    rename(file=name, num_records=value)
+    mutate(value = as.double(value)) %>% 
+    rename(file = name, num_records = value)
   
   return(out)
 }
@@ -69,5 +70,5 @@ get_unique_fitbit_devices <- function(folder_path) {
 }
 
 pids <- get_unique_participant_ids('./adult/1/')
-nrecs <- get_num_rows_per_file('./adult/1/', './adult/1/Manifest.csv')
+nrecs <- get_num_rows_per_file('./adult/1/')
 devices <- get_unique_fitbit_devices('./adult/1/')
