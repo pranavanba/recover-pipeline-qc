@@ -1,0 +1,10 @@
+---
+title: "Input Data Metrics"
+author: "Pranav Anbarasu"
+format: html
+---
+
+```{r}
+#| echo: false
+2 * 2
+```
