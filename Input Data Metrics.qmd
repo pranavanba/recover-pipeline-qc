@@ -14,16 +14,25 @@ execute:
 
 ```{r}
 #| echo: false
+n_unique_pids_adult <- 
+  pids_enroll_adults %>% 
+  select(ParticipantIdentifier, EnrollmentDate) %>% 
+  mutate(EnrollmentDate = lubridate::date(EnrollmentDate)) %>% 
+  distinct()
+n_unique_pids_adult
+```
 
+```{r}
+glue::glue('n = {n_unique_pids_adult$ParticipantIdentifier %>% n_distinct()} unique participants enrolled as of {n_unique_pids_adult$EnrollmentDate %>% max()}')
 ```
 
 ## Count of Records
 
-In this case, a record is a row in a file
+A record corresponds to a single json object (data point/measurement)
 
 ```{r}
 #| echo: false
-
+nrecs_date_adults %>% arrange(ExportStartDate)
 ```
 
 ## Unique Devices
