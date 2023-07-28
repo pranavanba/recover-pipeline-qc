@@ -1,10 +1,45 @@
 ---
 title: "Input Data Metrics"
 author: "Pranav Anbarasu"
-format: html
+format:
+  html:
+    embed-resources: true
+    toc: true
+    smooth-scroll: true
+execute:
+  echo: false
 ---
+
+## Count of Unique Participants
 
 ```{r}
 #| echo: false
-2 * 2
+
 ```
+
+## Count of Records
+
+In this case, a record is a row in a file
+
+```{r}
+#| echo: false
+
+```
+
+## Unique Devices
+
+For the adult cohort, the following device info is extracted from the FitbitDevices files.
+
+```{r}
+devices_summary_adult <- 
+  devices_adults %>% 
+  select(ParticipantIdentifier, Device, Type) %>% 
+  group_by(Device, Type) %>% 
+  summarise(n_participants = n_distinct(ParticipantIdentifier), )
+devices_summary_adult
+```
+
+```{r}
+glue::glue('n = {devices_summary_adult$n_participants %>% sum()} participants sharing device data via Fitbit as of {devices_adults$Date %>% as.Date() %>% max()}')
+```
+
