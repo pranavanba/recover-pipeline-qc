@@ -85,13 +85,12 @@ get_num_rows_per_file <- function(folder_path) {
 get_unique_fitbit_devices <- function(folder_path) {
   fitbit_files <- list.files(folder_path, pattern = "FitbitDevices", full.names = TRUE)
   
-  combined_result <- data.frame(Device = character(), ParticipantIdentifier = character(), stringsAsFactors = FALSE)
+  combined_result <- data.frame(stringsAsFactors = FALSE)
   
   for (file_path in fitbit_files) {
     data <- stream_in(con = file(file_path), flatten = TRUE)
-    subset_data <- data[, c("Device", "ParticipantIdentifier"), drop = FALSE]
     
-    combined_result <- rbind(combined_result, subset_data)
+    combined_result <- rbind(combined_result, data)
   }
   
   return(combined_result)
@@ -284,6 +283,6 @@ devices_summary_adult <-
   devices_adults %>% 
   select(ParticipantIdentifier, Device) %>% 
   group_by(Device) %>% 
-  summarise(n_distinct(ParticipantIdentifier))
+  summarise(n_participants = n_distinct(ParticipantIdentifier))
 
 devices_ped$value %>% unique() %>% sort()
