@@ -11,6 +11,51 @@ execute:
 ---
 
 ```{r}
+#| output: false
+library(lubridate)
+library(stringr)
+library(dplyr)
+```
+
+## Count of Unique Participants
+
+```{r}
+pq_enrolled <- 
+  enrolled %>% 
+  select(ParticipantIdentifier, EnrollmentDate) %>% 
+  mutate(EnrollmentDate = lubridate::date(EnrollmentDate))
+pq_enrolled
+```
+
+```{r}
+glue::glue('n = {pq_enrolled$ParticipantIdentifier %>% n_distinct()} unique participants (Adults: {pq_enrolled %>%
+  filter(str_starts(ParticipantIdentifier, "RA")) %>%
+  distinct(ParticipantIdentifier) %>%
+  tally()}, Pediatric: {pq_enrolled %>%
+  filter(str_starts(ParticipantIdentifier, "RP")) %>%
+  distinct(ParticipantIdentifier) %>%
+  tally()}) as of {pq_enrolled$EnrollmentDate %>% max()}')
+```
+
+
+## Count of Records
+
+A count is a single row in a parquet dataset (ETL pipeline handles removal of duplicate data)
+
+```{r}
+pq_n_records
+```
+
+### Average number of days of data per participant
+
+```{r}
+
+```
+
+
+## Unique Devices
+
+```{r}
 
 ```
 
