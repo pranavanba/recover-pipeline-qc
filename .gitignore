@@ -6,3 +6,6 @@
 /adult/
 /pediatric/
 SYNAPSE_METADATA_MANIFEST.tsv
+misc.R
+parquet
+input_data_unzipped
