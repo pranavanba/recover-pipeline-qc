@@ -40,7 +40,7 @@ glue::glue('n = {pq_enrolled$ParticipantIdentifier %>% n_distinct()} unique part
 
 ## Count of Records
 
-A count is a single row in a parquet dataset (ETL pipeline handles removal of duplicate data)
+A count is a single row in a parquet dataset (after removal of duplicate data)
 
 ```{r}
 pq_n_records
@@ -56,14 +56,22 @@ pq_n_records
 ## Unique Devices
 
 ```{r}
-fitbitdevices %>% 
+pq_pids_by_fitbit_devices <- 
+  fitbitdevices %>% 
   select(ParticipantIdentifier, Device, Type) %>% 
   group_by(Device, Type) %>% 
   summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep')
+pq_pids_by_fitbit_devices
 
-googlefit %>% 
+pq_pids_by_googlefit <- 
+  googlefit %>% 
   select(ParticipantIdentifier, OriginalDataSourceDeviceModel, OriginalDataSourceDeviceType) %>% 
   group_by(OriginalDataSourceDeviceModel, OriginalDataSourceDeviceType) %>% 
   summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep')
+pq_pids_by_googlefit
+```
+
+```{r}
+glue::glue('n = {n_distinct(fitbitdevices$ParticipantIdentifier) + n_distinct(googlefit$ParticipantIdentifier)} unique participants (Fitbit: {n_distinct(fitbitdevices$ParticipantIdentifier)}, Google Fit: {n_distinct(googlefit$ParticipantIdentifier)}) sharing device data via Fitbit and Google Fit as of {fitbitdevices$Date %>% lubridate::date() %>% max()} and {googlefit$WindowEnd %>% lubridate::date() %>% max()} respectively.')
 ```
 
