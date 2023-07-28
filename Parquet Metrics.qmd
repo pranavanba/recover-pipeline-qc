@@ -56,6 +56,14 @@ pq_n_records
 ## Unique Devices
 
 ```{r}
+fitbitdevices %>% 
+  select(ParticipantIdentifier, Device, Type) %>% 
+  group_by(Device, Type) %>% 
+  summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep')
 
+googlefit %>% 
+  select(ParticipantIdentifier, OriginalDataSourceDeviceModel, OriginalDataSourceDeviceType) %>% 
+  group_by(OriginalDataSourceDeviceModel, OriginalDataSourceDeviceType) %>% 
+  summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep')
 ```
 
