@@ -1,5 +1,17 @@
 # setwd('./parquet/')
 # system('synapse get -r syn51406699')
+# subfolders <- list.dirs(recursive = FALSE)
+# for (subfolder in subfolders) {
+#   file_path <- file.path(subfolder, "SYNAPSE_METADATA_MANIFEST.tsv")
+#   
+#   # Check if the file exists in the subfolder
+#   if (file.exists(file_path)) {
+#     file.remove(file_path)
+#     cat("File removed:", file_path, "\n")
+#   } else {
+#     cat("File not found in:", subfolder, "\n")
+#   }
+# }
 # setwd('~/recover-pipeline-qc/')
 
 library(arrow)
