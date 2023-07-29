@@ -134,7 +134,7 @@ all_participants_by_dataset %>%
 ```{r}
 all_participants_by_dataset %>% 
   group_by(dataset) %>% 
-  summarise(unique_participants = n_distinct(ParticipantIdentifier))
+  summarise(n_participants = n_distinct(ParticipantIdentifier))
 ```
 
 ### Contributing to Multiple Datasets
