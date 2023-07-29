@@ -14,6 +14,7 @@ execute:
 
 ```{r}
 #| output: false
+#| warning: false
 
 library(lubridate)
 library(stringr)
@@ -25,13 +26,22 @@ library(tidyr)
 ```{r}
 #| output: false
 
-fitbitdevices <- arrow::open_dataset('./parquet/dataset_fitbitdevices/') %>% as_tibble()
 enrolled <- arrow::open_dataset('./parquet/dataset_enrolledparticipants/') %>% as_tibble()
+fitbit_actlogs <- arrow::open_dataset('./parquet/dataset_fitbitactivitylogs//') %>% as_tibble()
+fitbit_dailydata <- arrow::open_dataset('./parquet/dataset_fitbitdailydata//') %>% as_tibble()
+fitbit_devices <- arrow::open_dataset('./parquet/dataset_fitbitdevices/') %>% as_tibble()
+fitbit_intracomb <- arrow::open_dataset('./parquet/dataset_fitbitintradaycombined/') %>% 
+  select(ParticipantIdentifier, DateTime) %>% 
+  as_tibble()
+fitbit_rhr <- arrow::open_dataset('./parquet/dataset_fitbitrestingheartrates/') %>% as_tibble()
+fitbit_sleeplogs <- arrow::open_dataset('./parquet/dataset_fitbitsleeplogs/') %>% as_tibble()
 googlefit <- arrow::open_dataset('./parquet/dataset_googlefitsamples/') %>% as_tibble()
 hk_activitysummaries <- arrow::open_dataset('./parquet/dataset_healthkitv2activitysummaries/') %>% as_tibble() # No device vars
 hk_ecg <- arrow::open_dataset('./parquet/dataset_healthkitv2electrocardiogram/') %>% as_tibble() # Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier (replace_na Apple Watch and iPhone), StartDate
 hk_heartbeat <- arrow::open_dataset('./parquet/dataset_healthkitv2heartbeat/') %>% as_tibble() # Device_Name, Device_Model, Device_HardwareVersion, Source_Name (replace_na Apple Watch and iPhone), StartDate
-hk_samples <- arrow::open_dataset('./parquet/dataset_healthkitv2samples/') %>% select(ParticipantIdentifier, Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier, StartDate) %>% as_tibble() # Device_Name, Device_Model, Device_HardwareVersion, Source_Name (replace_na Apple Watch and iPhone), StartDate
+hk_samples <- arrow::open_dataset('./parquet/dataset_healthkitv2samples/') %>% 
+  select(ParticipantIdentifier, Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier, StartDate) %>% 
+  as_tibble() # Device_Name, Device_Model, Device_HardwareVersion, Source_Name (replace_na Apple Watch and iPhone), StartDate
 hk_stats <- arrow::open_dataset('./parquet/dataset_healthkitv2statistics/') %>% as_tibble() # No device vars
 hk_workouts <- arrow::open_dataset('./parquet/dataset_healthkitv2workouts/') %>% as_tibble() # Device_Name, Device_Model, Device_HardwareVersion, Source_Name (replace_na Apple Watch and iPhone), StartDate
 symptomlog <- arrow::open_dataset('./parquet/dataset_symptomlog/') %>% as_tibble()
@@ -40,21 +50,111 @@ symptomlog <- arrow::open_dataset('./parquet/dataset_symptomlog/') %>% as_tibble
 ## Count of Unique Participants
 
 ```{r}
-pq_enrolled <- 
-  enrolled %>% 
-  select(ParticipantIdentifier, EnrollmentDate) %>% 
-  mutate(EnrollmentDate = lubridate::date(EnrollmentDate))
-pq_enrolled
+# pq_enrolled <- 
+#   enrolled %>% 
+#   select(ParticipantIdentifier, EnrollmentDate) %>% 
+#   mutate(EnrollmentDate = lubridate::date(EnrollmentDate))
+# pq_enrolled
 ```
 
 ```{r}
-print(glue::glue('n = {pq_enrolled$ParticipantIdentifier %>% n_distinct()} unique participants (Adults: {pq_enrolled %>%
-  filter(str_starts(ParticipantIdentifier, "RA")) %>%
-  distinct(ParticipantIdentifier) %>%
-  tally()}, Pediatric: {pq_enrolled %>%
-  filter(str_starts(ParticipantIdentifier, "RP")) %>%
-  distinct(ParticipantIdentifier) %>%
-  tally()}) in the EnrolledParticipants dataset as of {pq_enrolled$EnrollmentDate %>% max()}'))
+#| output: false
+
+all_participants_by_dataset <- tibble(dataset = character(), ParticipantIdentifier = character())
+all_participants_by_dataset <- 
+  bind_rows(all_participants_by_dataset, 
+            (enrolled %>% 
+               select(ParticipantIdentifier) %>% 
+               mutate(dataset = 'enrolledparticipants')),
+            (fitbit_actlogs %>% 
+               select(ParticipantIdentifier) %>% 
+               mutate(dataset = 'fitbit')),
+            (fitbit_dailydata %>% 
+               select(ParticipantIdentifier) %>% 
+               mutate(dataset = 'fitbit')),
+            (fitbit_devices %>% 
+               select(ParticipantIdentifier) %>% 
+               mutate(dataset = 'fitbit')),
+            (fitbit_intracomb %>%
+               select(ParticipantIdentifier) %>% 
+               distinct() %>% 
+               mutate(dataset = 'fitbit')),
+            (fitbit_rhr %>% 
+               select(ParticipantIdentifier) %>% 
+               mutate(dataset = 'fitbit')),
+            (fitbit_sleeplogs %>% 
+               select(ParticipantIdentifier) %>% 
+               mutate(dataset = 'fitbit')),
+            (googlefit %>% 
+               select(ParticipantIdentifier) %>% 
+               mutate(dataset = 'googlefit')),
+            (hk_activitysummaries %>% 
+               select(ParticipantIdentifier) %>% 
+               mutate(dataset = 'healthkit')),
+            (hk_ecg %>% 
+               select(ParticipantIdentifier) %>% 
+               mutate(dataset = 'healthkit')),
+            (hk_heartbeat %>% 
+               select(ParticipantIdentifier) %>% 
+               mutate(dataset = 'healthkit')),
+            (hk_samples %>%
+               select(ParticipantIdentifier) %>% 
+               distinct() %>% 
+               mutate(dataset = 'healthkit')),
+            (hk_stats %>% 
+               select(ParticipantIdentifier) %>% 
+               mutate(dataset = 'healthkit')),
+            (hk_workouts %>% 
+               select(ParticipantIdentifier) %>% 
+               mutate(dataset = 'healthkit')),
+            symptomlog %>% 
+              select(ParticipantIdentifier) %>% 
+              mutate(dataset = 'symptomlog')) %>% 
+  group_by(dataset, ParticipantIdentifier) %>% 
+  distinct() %>% 
+  ungroup()
+```
+
+::: panel-tabset
+### By Cohort
+
+```{r}
+all_participants_by_dataset %>%
+  group_by(cohort = case_when(
+    startsWith(ParticipantIdentifier, "RA") ~ "Adult",
+    startsWith(ParticipantIdentifier, "RP") ~ "Pediatric",
+    TRUE ~ "Other"
+  )) %>%
+  summarise(n_participants = n_distinct(ParticipantIdentifier))
+```
+
+### Per Dataset
+
+```{r}
+all_participants_by_dataset %>% 
+  group_by(dataset) %>% 
+  summarise(unique_participants = n_distinct(ParticipantIdentifier))
+```
+
+### Contributing to Multiple Datasets
+```{r}
+all_participants_by_dataset %>% 
+  group_by(ParticipantIdentifier) %>%
+  summarise(n_datasets_contributing_to = n_distinct(dataset)) %>%
+  group_by(n_datasets_contributing_to) %>%
+  summarise(n_participants = n())
+```
+
+:::
+
+```{r}
+# print(glue::glue('n = {pq_enrolled$ParticipantIdentifier %>% n_distinct()} unique participants (Adults: {pq_enrolled %>%
+#   filter(str_starts(ParticipantIdentifier, "RA")) %>%
+#   distinct(ParticipantIdentifier) %>%
+#   tally()}, Pediatric: {pq_enrolled %>%
+#   filter(str_starts(ParticipantIdentifier, "RP")) %>%
+#   distinct(ParticipantIdentifier) %>%
+#   tally()}) in the EnrolledParticipants dataset as of {pq_enrolled$EnrollmentDate %>% max()}'))
 ```
 
 ## Count of Records
@@ -75,7 +175,7 @@ for (dir in list.dirs('./parquet/', recursive = F)) {
 pq_n_records %>% arrange(desc(n_records))
 ```
 
-### Average number of days of data per participant
+<!-- ### Average number of days of data per participant -->
 
 ```{r}
 
@@ -131,7 +231,3 @@ bind_rows(
   arrange(desc(n_participants))
 ```
 :::
-
-```{r}
-print(glue::glue('n = {n_distinct(fitbitdevices$ParticipantIdentifier) + n_distinct(googlefit$ParticipantIdentifier)} unique participants (Fitbit: {n_distinct(fitbitdevices$ParticipantIdentifier)}, Google Fit: {n_distinct(googlefit$ParticipantIdentifier)}) sharing device data via Fitbit and Google Fit as of {fitbitdevices$Date %>% lubridate::date() %>% max()} and {googlefit$WindowEnd %>% lubridate::date() %>% max()} respectively.'))
-```
