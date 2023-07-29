@@ -31,7 +31,8 @@ fitbit_actlogs <- arrow::open_dataset('./parquet/dataset_fitbitactivitylogs//') 
 fitbit_dailydata <- arrow::open_dataset('./parquet/dataset_fitbitdailydata//') %>% as_tibble()
 fitbit_devices <- arrow::open_dataset('./parquet/dataset_fitbitdevices/') %>% as_tibble()
 fitbit_intracomb <- arrow::open_dataset('./parquet/dataset_fitbitintradaycombined/') %>% 
-  select(ParticipantIdentifier, DateTime) %>% 
+  select(ParticipantIdentifier) %>% 
+  distinct() %>% 
   as_tibble()
 fitbit_rhr <- arrow::open_dataset('./parquet/dataset_fitbitrestingheartrates/') %>% as_tibble()
 fitbit_sleeplogs <- arrow::open_dataset('./parquet/dataset_fitbitsleeplogs/') %>% as_tibble()
@@ -188,7 +189,7 @@ pq_n_records %>% arrange(desc(n_records))
 
 ```{r}
 pq_pids_by_fitbit_devices <- 
-  fitbitdevices %>% 
+  fitbit_devices %>% 
   select(ParticipantIdentifier, Device, Type) %>% 
   group_by(Device, Type) %>% 
   summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep') %>% 
@@ -204,7 +205,9 @@ pq_pids_by_googlefit <-
   select(ParticipantIdentifier, OriginalDataSourceDeviceModel, OriginalDataSourceDeviceType) %>% 
   group_by(OriginalDataSourceDeviceModel, OriginalDataSourceDeviceType) %>% 
   summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep') %>% 
-  arrange(desc(n_participants))
+  arrange(desc(n_participants)) %>% 
+  rename(DeviceModel=OriginalDataSourceDeviceModel,
+         DeviceType=OriginalDataSourceDeviceType)
 pq_pids_by_googlefit
 ```
 
