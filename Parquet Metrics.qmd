@@ -14,11 +14,27 @@ execute:
 
 ```{r}
 #| output: false
+
 library(lubridate)
 library(stringr)
 library(dplyr)
 library(arrow)
 library(tidyr)
+```
+
+```{r}
+#| output: false
+
+fitbitdevices <- arrow::open_dataset('./parquet/dataset_fitbitdevices/') %>% as_tibble()
+enrolled <- arrow::open_dataset('./parquet/dataset_enrolledparticipants/') %>% as_tibble()
+googlefit <- arrow::open_dataset('./parquet/dataset_googlefitsamples/') %>% as_tibble()
+hk_activitysummaries <- arrow::open_dataset('./parquet/dataset_healthkitv2activitysummaries/') %>% as_tibble() # No device vars
+hk_ecg <- arrow::open_dataset('./parquet/dataset_healthkitv2electrocardiogram/') %>% as_tibble() # Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier (replace_na Apple Watch and iPhone), StartDate
+hk_heartbeat <- arrow::open_dataset('./parquet/dataset_healthkitv2heartbeat/') %>% as_tibble() # Device_Name, Device_Model, Device_HardwareVersion, Source_Name (replace_na Apple Watch and iPhone), StartDate
+hk_samples <- arrow::open_dataset('./parquet/dataset_healthkitv2samples/') %>% select(ParticipantIdentifier, Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier, StartDate) %>% as_tibble() # Device_Name, Device_Model, Device_HardwareVersion, Source_Name (replace_na Apple Watch and iPhone), StartDate
+hk_stats <- arrow::open_dataset('./parquet/dataset_healthkitv2statistics/') %>% as_tibble() # No device vars
+hk_workouts <- arrow::open_dataset('./parquet/dataset_healthkitv2workouts/') %>% as_tibble() # Device_Name, Device_Model, Device_HardwareVersion, Source_Name (replace_na Apple Watch and iPhone), StartDate
+symptomlog <- arrow::open_dataset('./parquet/dataset_symptomlog/') %>% as_tibble()
 ```
 
 ## Count of Unique Participants
@@ -32,22 +48,31 @@ pq_enrolled
 ```
 
 ```{r}
-glue::glue('n = {pq_enrolled$ParticipantIdentifier %>% n_distinct()} unique participants (Adults: {pq_enrolled %>%
+print(glue::glue('n = {pq_enrolled$ParticipantIdentifier %>% n_distinct()} unique participants (Adults: {pq_enrolled %>%
   filter(str_starts(ParticipantIdentifier, "RA")) %>%
   distinct(ParticipantIdentifier) %>%
   tally()}, Pediatric: {pq_enrolled %>%
   filter(str_starts(ParticipantIdentifier, "RP")) %>%
   distinct(ParticipantIdentifier) %>%
-  tally()}) in the EnrolledParticipants dataset as of {pq_enrolled$EnrollmentDate %>% max()}')
+  tally()}) in the EnrolledParticipants dataset as of {pq_enrolled$EnrollmentDate %>% max()}'))
 ```
-
 
 ## Count of Records
 
-A count is a single row in a parquet dataset (after removal of duplicate data)
+A record is a single row in a parquet dataset (after removal of duplicate data)
 
 ```{r}
-pq_n_records
+pq_n_records <- tibble()
+for (dir in list.dirs('./parquet/', recursive = F)) {
+  rows <- open_dataset(dir) %>% nrow()
+  name <- basename(dir)
+  current <- tibble(dataset = name, n_records = rows)
+  pq_n_records <- bind_rows(pq_n_records, current)
+}
+```
+
+```{r}
+pq_n_records %>% arrange(desc(n_records))
 ```
 
 ### Average number of days of data per participant
@@ -57,58 +82,56 @@ pq_n_records
 ```
 
 ## Unique Devices
-::: {.panel-tabset}
 
+::: panel-tabset
 ### Fitbit
+
 ```{r}
 pq_pids_by_fitbit_devices <- 
   fitbitdevices %>% 
   select(ParticipantIdentifier, Device, Type) %>% 
   group_by(Device, Type) %>% 
-  summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep')
+  summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep') %>% 
+  arrange(desc(n_participants))
 pq_pids_by_fitbit_devices
 ```
 
 ### Google Fit
+
 ```{r}
 pq_pids_by_googlefit <- 
   googlefit %>% 
   select(ParticipantIdentifier, OriginalDataSourceDeviceModel, OriginalDataSourceDeviceType) %>% 
   group_by(OriginalDataSourceDeviceModel, OriginalDataSourceDeviceType) %>% 
-  summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep')
+  summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep') %>% 
+  arrange(desc(n_participants))
 pq_pids_by_googlefit
 ```
 
 ### HealthKit
+
 ```{r}
-hk_ecg %>% 
-  select(ParticipantIdentifier, Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier, StartDate) %>% 
-  mutate(Source_Identifier = gsub('com\\.apple\\.health.*', 'com.apple.health', Source_Identifier)) %>% 
+bind_rows(
+  (hk_ecg %>% 
+    select(ParticipantIdentifier, Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier, StartDate) %>% 
+    mutate(Source_Identifier = gsub('com\\.apple\\.health.*', 'com.apple.health', Source_Identifier))),
+  (hk_heartbeat %>% 
+    select(ParticipantIdentifier, Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier, StartDate) %>% 
+    mutate(Source_Identifier = gsub('com\\.apple\\.health.*', 'com.apple.health', Source_Identifier))),
+  (hk_samples %>%
+    select(ParticipantIdentifier, Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier, StartDate) %>%
+    mutate(Source_Identifier = gsub('com\\.apple\\.health.*', 'com.apple.health', Source_Identifier))),
+  (hk_workouts %>% 
+    select(ParticipantIdentifier, Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier, StartDate) %>% 
+    mutate(Source_Identifier = gsub('com\\.apple\\.health.*', 'com.apple.health', Source_Identifier)) %>% 
+    group_by(Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier))
+  ) %>% 
   group_by(Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier) %>% 
-  summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep')
-
-hk_heartbeat %>% 
-  select(ParticipantIdentifier, Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier, StartDate) %>% 
-  mutate(Source_Identifier = gsub('com\\.apple\\.health.*', 'com.apple.health', Source_Identifier)) %>% 
-  group_by(Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier) %>% 
-  summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep')
-
-hk_samples %>% 
-  select(ParticipantIdentifier, Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier, StartDate) %>% 
-  mutate(Source_Identifier = gsub('com\\.apple\\.health.*', 'com.apple.health', Source_Identifier)) %>% 
-  group_by(Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier) %>% 
-  summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep')
-
-hk_workouts %>% 
-  select(ParticipantIdentifier, Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier, StartDate) %>% 
-  mutate(Source_Identifier = gsub('com\\.apple\\.health.*', 'com.apple.health', Source_Identifier)) %>% 
-  group_by(Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier) %>% 
-  summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep')
+  summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep') %>% 
+  arrange(desc(n_participants))
 ```
-
 :::
 
 ```{r}
 print(glue::glue('n = {n_distinct(fitbitdevices$ParticipantIdentifier) + n_distinct(googlefit$ParticipantIdentifier)} unique participants (Fitbit: {n_distinct(fitbitdevices$ParticipantIdentifier)}, Google Fit: {n_distinct(googlefit$ParticipantIdentifier)}) sharing device data via Fitbit and Google Fit as of {fitbitdevices$Date %>% lubridate::date() %>% max()} and {googlefit$WindowEnd %>% lubridate::date() %>% max()} respectively.'))
 ```
-
