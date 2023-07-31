@@ -120,30 +120,39 @@ all_participants_by_dataset <-
 ### By Cohort
 
 ```{r}
-all_participants_by_dataset %>%
+pq_pids_by_cohort <- 
+  all_participants_by_dataset %>%
   group_by(cohort = case_when(
     startsWith(ParticipantIdentifier, "RA") ~ "Adult",
     startsWith(ParticipantIdentifier, "RP") ~ "Pediatric",
     TRUE ~ "Other"
   )) %>%
   summarise(n_participants = n_distinct(ParticipantIdentifier))
+pq_pids_by_cohort
+write.csv(pq_pids_by_cohort, './rendered_dfs/parquet_pids_by_cohort.csv')
 ```
 
 ### Per Dataset
 
 ```{r}
-all_participants_by_dataset %>% 
+pq_pids_by_dataset <- 
+  all_participants_by_dataset %>% 
   group_by(dataset) %>% 
   summarise(n_participants = n_distinct(ParticipantIdentifier))
+pq_pids_by_dataset
+write.csv(pq_pids_by_dataset, './rendered_dfs/parquet_pids_by_dataset.csv')
 ```
 
 ### Contributing to Multiple Datasets
 ```{r}
-all_participants_by_dataset %>% 
+pq_pids_multiple_datasets <- 
+  all_participants_by_dataset %>% 
   group_by(ParticipantIdentifier) %>%
   summarise(n_datasets_contributing_to = n_distinct(dataset)) %>%
   group_by(n_datasets_contributing_to) %>%
   summarise(n_participants = n())
+pq_pids_multiple_datasets
+write.csv(pq_pids_multiple_datasets, './rendered_dfs/parquet_pids_multiple_datasets.csv')
 ```
 
 :::
@@ -174,6 +183,7 @@ for (dir in list.dirs('./parquet/', recursive = F)) {
 
 ```{r}
 pq_n_records %>% arrange(desc(n_records))
+write.csv((pq_n_records %>% arrange(desc(n_records))), './rendered_dfs/parquet_records_per_dataset.csv')
 ```
 
 <!-- ### Average number of days of data per participant -->
@@ -195,6 +205,7 @@ pq_pids_by_fitbit_devices <-
   summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep') %>% 
   arrange(desc(n_participants))
 pq_pids_by_fitbit_devices
+write.csv(pq_pids_by_fitbit_devices, './rendered_dfs/parquet_pids_by_fitbit_devices.csv')
 ```
 
 ### Google Fit
@@ -209,6 +220,7 @@ pq_pids_by_googlefit <-
   rename(DeviceModel=OriginalDataSourceDeviceModel,
          DeviceType=OriginalDataSourceDeviceType)
 pq_pids_by_googlefit
+write.csv(pq_pids_by_googlefit, './rendered_dfs/parquet_pids_by_googlefit.csv')
 ```
 
 ### HealthKit
@@ -234,14 +246,19 @@ hk_devices <- bind_rows(
 ```
 
 ```{r}
-hk_devices %>% 
+pq_large_pids_by_hk <- 
+  hk_devices %>% 
   group_by(Device_Model, Device_HardwareVersion, Source_Identifier) %>% 
   summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep') %>% 
-  arrange(desc(n_participants))
+  arrange(desc(n_participants)) %>% 
+  ungroup()
+pq_large_pids_by_hk
+write.csv(pq_large_pids_by_hk, './rendered_dfs/parquet_large_pids_by_hk.csv')
 ```
 
 ```{r}
-hk_devices %>%
+pq_filtered_pids_by_hk <- 
+  hk_devices %>%
   select(ParticipantIdentifier, Device_Model, Device_HardwareVersion, Source_Identifier) %>%
   mutate(Source_Identifier = str_to_lower(Source_Identifier)) %>%
   mutate(Source = ifelse(
@@ -263,6 +280,8 @@ hk_devices %>%
   summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep') %>%
   arrange(desc(n_participants)) %>% 
   ungroup()
+pq_filtered_pids_by_hk
+write.csv(pq_filtered_pids_by_hk, './rendered_dfs/parquet_filtered_pids_by_hk.csv')
 ```
 
 :::
@@ -304,13 +323,18 @@ devices_per_pid_hk <-
   ungroup() %>% 
   rename(n_participants = n) %>% 
   mutate(dataset = 'healthkit')
+```
 
-bind_rows(devices_per_pid_fitbit, 
+```{r}
+pq_n_devices_per_participant <- 
+  bind_rows(devices_per_pid_fitbit, 
           devices_per_pid_googlefit, 
           devices_per_pid_hk) %>% 
   group_by(dataset) %>% 
   arrange(n_devices_per_participant, .by_group = T) %>% 
   select(dataset, everything())
+pq_n_devices_per_participant
+write.csv(pq_n_devices_per_participant, './rendered_dfs/parquet_n_devices_per_participant.csv')
 ```
 
 ### Number of Participants Without Device Data Found in Non-Device Files
@@ -327,15 +351,18 @@ mismatch_pids_fitbit <- (all_participants_by_dataset %>% filter(dataset=='fitbit
 ```
 
 ```{r}
-data.frame(
-  dataset = c("activitylogs", "dailydata", "intradaycombined", "restingheartrate", "sleeplogs"),
-  n_participants = c(
-    length(mismatch_pids_fitbit[which(mismatch_pids_fitbit %in% (fitbit_actlogs$ParticipantIdentifier %>% unique() %>% sort()))]),
-    length(mismatch_pids_fitbit[which(mismatch_pids_fitbit %in% (fitbit_dailydata$ParticipantIdentifier %>% unique() %>% sort()))]),
-    length(mismatch_pids_fitbit[which(mismatch_pids_fitbit %in% (fitbit_intracomb$ParticipantIdentifier %>% unique() %>% sort()))]),
-    length(mismatch_pids_fitbit[which(mismatch_pids_fitbit %in% (fitbit_rhr$ParticipantIdentifier %>% unique() %>% sort()))]),
-    length(mismatch_pids_fitbit[which(mismatch_pids_fitbit %in% (fitbit_sleeplogs$ParticipantIdentifier %>% unique() %>% sort()))])
+pq_device_pids_mismatch_fitbit <- 
+  data.frame(
+    dataset = c("activitylogs", "dailydata", "intradaycombined", "restingheartrate", "sleeplogs"),
+    n_participants = c(
+      length(mismatch_pids_fitbit[which(mismatch_pids_fitbit %in% (fitbit_actlogs$ParticipantIdentifier %>% unique() %>% sort()))]),
+      length(mismatch_pids_fitbit[which(mismatch_pids_fitbit %in% (fitbit_dailydata$ParticipantIdentifier %>% unique() %>% sort()))]),
+      length(mismatch_pids_fitbit[which(mismatch_pids_fitbit %in% (fitbit_intracomb$ParticipantIdentifier %>% unique() %>% sort()))]),
+      length(mismatch_pids_fitbit[which(mismatch_pids_fitbit %in% (fitbit_rhr$ParticipantIdentifier %>% unique() %>% sort()))]),
+      length(mismatch_pids_fitbit[which(mismatch_pids_fitbit %in% (fitbit_sleeplogs$ParticipantIdentifier %>% unique() %>% sort()))])
+    )
   )
-)
+pq_device_pids_mismatch_fitbit
+write.csv(pq_device_pids_mismatch_fitbit, './rendered_dfs/parquet_device_pids_mismatch_fitbit.csv')
 ```
 :::
