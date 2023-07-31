@@ -214,7 +214,9 @@ pq_pids_by_googlefit
 ### HealthKit
 
 ```{r}
-bind_rows(
+#| output: false
+
+hk_devices <- bind_rows(
   (hk_ecg %>% 
     select(ParticipantIdentifier, Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier, StartDate) %>% 
     mutate(Source_Identifier = gsub('com\\.apple\\.health.*', 'com.apple.health', Source_Identifier))),
@@ -228,9 +230,112 @@ bind_rows(
     select(ParticipantIdentifier, Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier, StartDate) %>% 
     mutate(Source_Identifier = gsub('com\\.apple\\.health.*', 'com.apple.health', Source_Identifier)) %>% 
     group_by(Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier))
-  ) %>% 
-  group_by(Device_Name, Device_Model, Device_HardwareVersion, Source_Identifier) %>% 
+  )
+```
+
+```{r}
+hk_devices %>% 
+  group_by(Device_Model, Device_HardwareVersion, Source_Identifier) %>% 
   summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep') %>% 
   arrange(desc(n_participants))
+```
+
+```{r}
+hk_devices %>%
+  select(ParticipantIdentifier, Device_Model, Device_HardwareVersion, Source_Identifier) %>%
+  mutate(Source_Identifier = str_to_lower(Source_Identifier)) %>%
+  mutate(Source = ifelse(
+    !is.na(Device_HardwareVersion) &
+      grepl("Watch|iPhone", Device_HardwareVersion, ignore.case = TRUE),
+    Device_HardwareVersion,
+    ifelse(
+      !is.na(Device_Model) &
+        grepl("withings|garmin|oura", Device_Model, ignore.case = TRUE),
+      Device_Model,
+      Source_Identifier
+    )
+  )) %>%
+  mutate(Source = case_when(
+    Source == 'com.apple.health' ~ 'com.apple.health (non-native)',
+    TRUE ~ Source
+  )) %>%
+  group_by(Source) %>%
+  summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep') %>%
+  arrange(desc(n_participants)) %>% 
+  ungroup()
+```
+
+:::
+
+### Devices per Participant
+
+```{r}
+devices_per_pid_fitbit <- 
+  fitbit_devices %>% 
+  select(ParticipantIdentifier, Device, Type) %>% 
+  group_by(ParticipantIdentifier) %>%
+  summarise(n_devices_per_participant = n_distinct(Device)) %>% 
+  group_by(n_devices_per_participant) %>% 
+  count() %>% 
+  ungroup() %>% 
+  rename(n_participants = n) %>% 
+  mutate(dataset = 'fitbit')
+
+devices_per_pid_googlefit <- 
+  googlefit %>% 
+  select(ParticipantIdentifier, OriginalDataSourceDeviceModel, OriginalDataSourceDeviceType) %>% 
+  rename(DeviceModel=OriginalDataSourceDeviceModel,
+         DeviceType=OriginalDataSourceDeviceType) %>% 
+  group_by(ParticipantIdentifier) %>% 
+  summarise(n_devices_per_participant = n_distinct(DeviceModel)) %>% 
+  group_by(n_devices_per_participant) %>% 
+  count() %>% 
+  ungroup() %>% 
+  rename(n_participants = n) %>% 
+  mutate(dataset = 'googlefit')
+
+devices_per_pid_hk <- 
+  hk_devices %>% 
+  select(ParticipantIdentifier, Device_HardwareVersion) %>% 
+  group_by(ParticipantIdentifier) %>% 
+  summarise(n_devices_per_participant = n_distinct(Device_HardwareVersion)) %>% 
+  group_by(n_devices_per_participant) %>% 
+  count() %>% 
+  ungroup() %>% 
+  rename(n_participants = n) %>% 
+  mutate(dataset = 'healthkit')
+
+bind_rows(devices_per_pid_fitbit, 
+          devices_per_pid_googlefit, 
+          devices_per_pid_hk) %>% 
+  group_by(dataset) %>% 
+  arrange(n_devices_per_participant, .by_group = T) %>% 
+  select(dataset, everything())
+```
+
+### Number of Participants Without Device Data Found in Non-Device Files
+
+E.g. 5 unique participant identifiers missing from the fitbit_devices dataset were found in the fitbit_activitylogs dataset
+
+::: panel-tabset
+#### Fitbit
+
+```{r}
+#| output: false
+
+mismatch_pids_fitbit <- (all_participants_by_dataset %>% filter(dataset=='fitbit') %>% pull(ParticipantIdentifier) %>% unique() %>% sort())[which(!((all_participants_by_dataset %>% filter(dataset=='fitbit') %>% pull(ParticipantIdentifier) %>% unique() %>% sort()) %in% (fitbit_devices$ParticipantIdentifier %>% unique() %>% sort())))]
+```
+
+```{r}
+data.frame(
+  dataset = c("activitylogs", "dailydata", "intradaycombined", "restingheartrate", "sleeplogs"),
+  n_participants = c(
+    length(mismatch_pids_fitbit[which(mismatch_pids_fitbit %in% (fitbit_actlogs$ParticipantIdentifier %>% unique() %>% sort()))]),
+    length(mismatch_pids_fitbit[which(mismatch_pids_fitbit %in% (fitbit_dailydata$ParticipantIdentifier %>% unique() %>% sort()))]),
+    length(mismatch_pids_fitbit[which(mismatch_pids_fitbit %in% (fitbit_intracomb$ParticipantIdentifier %>% unique() %>% sort()))]),
+    length(mismatch_pids_fitbit[which(mismatch_pids_fitbit %in% (fitbit_rhr$ParticipantIdentifier %>% unique() %>% sort()))]),
+    length(mismatch_pids_fitbit[which(mismatch_pids_fitbit %in% (fitbit_sleeplogs$ParticipantIdentifier %>% unique() %>% sort()))])
+  )
+)
 ```
 :::
