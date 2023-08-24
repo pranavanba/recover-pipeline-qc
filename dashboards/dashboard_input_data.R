@@ -1,3 +1,4 @@
+# Setup -------------------------------------------------------------------
 library(synapser)
 library(synapserutils)
 library(tidyr)
@@ -25,12 +26,13 @@ setwd('~/recover-pipeline-qc/')
 
 # files <- synapserutils::syncFromSynapse('syn51406699')
 
-#### Fitbit HeartRate HeartRateIntradayMinuteCount ####
 fitbitdailydata <- 
   open_dataset('./parquet/dataset_fitbitdailydata/') %>% 
   collect() %>% 
-  mutate(HeartRateIntradayMinuteCount = as.numeric(HeartRateIntradayMinuteCount))
+  mutate(HeartRateIntradayMinuteCount = as.numeric(HeartRateIntradayMinuteCount),
+         Tracker_Steps = as.numeric(Tracker_Steps))
 
+# Fitbit HeartRate HeartRateIntradayMinuteCount ---------------------------
 hr_insights <- data.frame()
 
 num_records_total <- 
@@ -103,3 +105,7 @@ avg_wear_time_since_enrollment_per_participant <-
 kd2 <- density(avg_wear_time_since_enrollment_per_participant$average_wear_time_percent, bw = "SJ")
 plot(kd2, main = "Adherence from Average Wear Time")
 polygon(kd2, col='lightblue', border='black')
+
+# Fitbit Activity tracker_steps -------------------------------------------
+
+
