@@ -62,7 +62,7 @@ num_participants_with_records_nonzero <-
   unique() %>% 
   length()
 
-avg_days_present_nonzero_per_participant <-
+days_present_nonzero_per_participant <-
   fitbitdailydata %>% 
   select(ParticipantIdentifier, Date, HeartRateIntradayMinuteCount) %>% 
   mutate(Date = as_date(Date)) %>% 
@@ -72,3 +72,11 @@ avg_days_present_nonzero_per_participant <-
   distinct(Date, .keep_all = T) %>% 
   summarise(days_present_nonzero = n()) %>% 
   ungroup()
+
+avg_days_present_nonzero <- mean(days_present_nonzero_per_participant$days_present_nonzero)
+
+kd <- density(days_present_nonzero_per_participant$days_present_nonzero, bw = "ucv")
+plot(kd)
+polygon(kd, col='lightblue', border='black')
+
+
