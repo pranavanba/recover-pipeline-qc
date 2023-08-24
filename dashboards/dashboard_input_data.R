@@ -26,8 +26,12 @@ setwd('~/recover-pipeline-qc/')
 # files <- synapserutils::syncFromSynapse('syn51406699')
 
 #### Fitbit HeartRate HeartRateIntradayMinuteCount ####
-fitbitdailydata <- open_dataset('./parquet/dataset_fitbitdailydata/') %>% collect()
-hr_insights <- list()
+fitbitdailydata <- 
+  open_dataset('./parquet/dataset_fitbitdailydata/') %>% 
+  collect() %>% 
+  mutate(HeartRateIntradayMinuteCount = as.numeric(HeartRateIntradayMinuteCount))
+
+hr_insights <- data.frame()
 
 num_records_total <- 
   fitbitdailydata %>% 
@@ -75,8 +79,27 @@ days_present_nonzero_per_participant <-
 
 avg_days_present_nonzero <- mean(days_present_nonzero_per_participant$days_present_nonzero)
 
-kd <- density(days_present_nonzero_per_participant$days_present_nonzero, bw = "ucv")
-plot(kd)
+kd <- density(days_present_nonzero_per_participant$days_present_nonzero, bw = "SJ")
+plot(kd, main = "Number of Days of Data per Participant")
 polygon(kd, col='lightblue', border='black')
 
+enrolledparticipants <- open_dataset('./parquet/dataset_enrolledparticipants/') %>% collect()
 
+wear_time_enrollment_df <- 
+  merge(x = fitbitdailydata %>% select(ParticipantIdentifier, Date, HeartRateIntradayMinuteCount), 
+             y = enrolledparticipants %>% select(ParticipantIdentifier, EnrollmentDate)) %>% 
+  mutate(Date = as_date(Date),
+         EnrollmentDate = as_date(EnrollmentDate)) %>% 
+  drop_na() %>% 
+  filter(HeartRateIntradayMinuteCount!=0)
+
+avg_wear_time_since_enrollment_per_participant <- 
+  wear_time_enrollment_df %>% 
+  group_by(ParticipantIdentifier) %>% 
+  filter(Date>=EnrollmentDate) %>% 
+  summarise(average_wear_time = mean(HeartRateIntradayMinuteCount)) %>% 
+  mutate(average_wear_time_percent = average_wear_time/1439)
+
+kd2 <- density(avg_wear_time_since_enrollment_per_participant$average_wear_time_percent, bw = "SJ")
+plot(kd2, main = "Adherence from Average Wear Time")
+polygon(kd2, col='lightblue', border='black')
