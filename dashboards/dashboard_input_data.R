@@ -36,40 +36,47 @@ enrolledparticipants <-
   open_dataset('./parquet/dataset_enrolledparticipants/') %>% 
   collect()
 
+
+# Functions ---------------------------------------------------------------
+num_records_total <- function(df, measure) {
+  df %>% 
+    select(all_of(measure)) %>% 
+    nrow()
+}
+
+num_records_complete <- function(df, measure) {
+  df %>% 
+    select(all_of(measure)) %>% 
+    drop_na() %>% 
+    nrow()
+}
+
+num_records_complete_nonzero <- function(df, measure) {
+  df %>%
+    select(all_of(measure)) %>%
+    filter(.[[measure]]!=0) %>%
+    drop_na() %>%
+    nrow()
+}
+
+num_participants_with_records <- function(df, measure) {
+  df$ParticipantIdentifier[
+    !is.na(df[[measure]])
+  ] %>%
+    unique() %>%
+    length()
+}
+
+num_participants_with_records_nonzero <- function(df, measure) {
+  df$ParticipantIdentifier[
+    !is.na(df[[measure]]) &
+      df[[measure]]!=0
+  ] %>%
+    unique() %>%
+    length()
+}
+
 # Fitbit HeartRate HeartRateIntradayMinuteCount ---------------------------
-num_records_total <- 
-  fitbitdailydata %>% 
-  select(HeartRateIntradayMinuteCount) %>% 
-  nrow()
-
-num_records_complete <- 
-  fitbitdailydata %>% 
-  select(HeartRateIntradayMinuteCount) %>% 
-  drop_na() %>% 
-  nrow()
-
-num_records_complete_nonzero <- 
-  fitbitdailydata %>% 
-  select(HeartRateIntradayMinuteCount) %>% 
-  filter(HeartRateIntradayMinuteCount!=0) %>% 
-  drop_na() %>% 
-  nrow()
-
-num_participants_with_records <- 
-  fitbitdailydata$ParticipantIdentifier[
-    !is.na(fitbitdailydata$HeartRateIntradayMinuteCount)
-    ] %>% 
-  unique() %>% 
-  length()
-
-num_participants_with_records_nonzero <- 
-  fitbitdailydata$ParticipantIdentifier[
-    !is.na(fitbitdailydata$HeartRateIntradayMinuteCount) & 
-      fitbitdailydata$HeartRateIntradayMinuteCount!=0
-    ] %>% 
-  unique() %>% 
-  length()
-
 days_present_nonzero_per_participant <-
   fitbitdailydata %>% 
   select(ParticipantIdentifier, Date, HeartRateIntradayMinuteCount) %>% 
@@ -103,7 +110,7 @@ avg_wear_time_since_enrollment_per_participant <-
   mutate(average_wear_time_percent = average_wear_time/1439)
 
 kd2 <- density(avg_wear_time_since_enrollment_per_participant$average_wear_time_percent, bw = "SJ")
-plot(kd2, main = "Adherence from Average Wear Time")
+plot(kd2, main = "Average Wear Time")
 polygon(kd2, col='lightblue', border='black')
 
 insights <- 
@@ -111,11 +118,11 @@ insights <-
     "device" = "fitbit",
     "category" = "heartrate",
     "measure" = "HeartRateIntradayMinuteCount",
-    "n_records" = num_records_total,
-    "n_complete_records" = num_records_complete,
-    "n_complete_nonzero_records" = num_records_complete_nonzero,
-    "n_participants_with_complete_records" = num_participants_with_records,
-    "n_participants_with_complete_nonzero_records" = num_participants_with_records_nonzero,
+    "n_records" = num_records_total(fitbitdailydata, "HeartRateIntradayMinuteCount"),
+    "n_complete_records" = num_records_complete(fitbitdailydata, "HeartRateIntradayMinuteCount"),
+    "n_complete_nonzero_records" = num_records_complete_nonzero(fitbitdailydata, "HeartRateIntradayMinuteCount"),
+    "n_participants_with_complete_records" = num_participants_with_records(fitbitdailydata, "HeartRateIntradayMinuteCount"),
+    "n_participants_with_complete_nonzero_records" = num_participants_with_records_nonzero(fitbitdailydata, "HeartRateIntradayMinuteCount"),
     "avg_days_of_complete_nonzero_data" = avg_days_present_nonzero)
 
 # Fitbit Activity tracker_steps -------------------------------------------
