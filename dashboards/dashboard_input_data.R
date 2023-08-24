@@ -24,7 +24,7 @@ setwd('~/recover-pipeline-qc/')
 
 # files <- synapserutils::syncFromSynapse('syn51406699')
 
-#### Fitbit Heart Rate ####
+#### Fitbit HeartRate HeartRateIntradayMinuteCount ####
 fitbitdailydata <- open_dataset('./parquet/dataset_fitbitdailydata/') %>% collect()
 hr_insights <- list()
 
@@ -33,16 +33,31 @@ num_records_total <-
   select(HeartRateIntradayMinuteCount) %>% 
   nrow()
 
-num_records_unique <- 
+num_records_complete <- 
   fitbitdailydata %>% 
   select(HeartRateIntradayMinuteCount) %>% 
-  unique() %>% 
+  drop_na() %>% 
   nrow()
 
-num_records_unique_complete <- 
+num_records_complete_nonzero <- 
   fitbitdailydata %>% 
   select(HeartRateIntradayMinuteCount) %>% 
-  unique() %>% 
   filter(HeartRateIntradayMinuteCount!=0) %>% 
   drop_na() %>% 
   nrow()
+
+num_participants_with_records <- 
+  fitbitdailydata$ParticipantIdentifier[
+    !is.na(fitbitdailydata$HeartRateIntradayMinuteCount)
+    ] %>% 
+  unique() %>% 
+  length()
+
+num_participants_with_records_nonzero <- 
+  fitbitdailydata$ParticipantIdentifier[
+    !is.na(fitbitdailydata$HeartRateIntradayMinuteCount) & 
+      fitbitdailydata$HeartRateIntradayMinuteCount!=0
+    ] %>% 
+  unique() %>% 
+  length()
+
