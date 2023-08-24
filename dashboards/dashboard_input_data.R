@@ -36,7 +36,6 @@ enrolledparticipants <-
   open_dataset('./parquet/dataset_enrolledparticipants/') %>% 
   collect()
 
-
 # Functions ---------------------------------------------------------------
 num_records_total <- function(df, measure) {
   df %>% 
@@ -76,25 +75,30 @@ num_participants_with_records_nonzero <- function(df, measure) {
     length()
 }
 
-# Fitbit HeartRate HeartRateIntradayMinuteCount ---------------------------
-days_present_nonzero_per_participant <-
+days_present_nonzero_per_participant <- function(df, measure) {
   fitbitdailydata %>% 
-  select(ParticipantIdentifier, Date, HeartRateIntradayMinuteCount) %>% 
-  mutate(Date = as_date(Date)) %>% 
-  drop_na() %>% 
-  filter(HeartRateIntradayMinuteCount!=0) %>% 
-  group_by(ParticipantIdentifier) %>% 
-  distinct(Date, .keep_all = T) %>% 
-  summarise(days_present_nonzero = n()) %>% 
-  ungroup()
+    select(ParticipantIdentifier, Date, measure) %>% 
+    mutate(Date = as_date(Date)) %>% 
+    drop_na() %>% 
+    filter(.[[measure]]!=0) %>% 
+    group_by(ParticipantIdentifier) %>% 
+    distinct(Date, .keep_all = T) %>% 
+    summarise(days_present_nonzero = n()) %>% 
+    ungroup()
+}
 
-avg_days_present_nonzero <- mean(days_present_nonzero_per_participant$days_present_nonzero)
+avg_days_present_nonzero <- function(df, col) {
+  mean(df[[col]])
+}
 
-kd <- density(days_present_nonzero_per_participant$days_present_nonzero, bw = "SJ")
+# Fitbit HeartRate HeartRateIntradayMinuteCount ---------------------------
+days_present_nonzero_per_participant_hr_df <- days_present_nonzero_per_participant(fitbitdailydata, "HeartRateIntradayMinuteCount")
+
+kd <- density(days_present_nonzero_per_participant_hr_df$days_present_nonzero, bw = "SJ")
 plot(kd, main = "Number of Days of Data per Participant")
 polygon(kd, col='lightblue', border='black')
 
-wear_time_enrollment_df <- 
+wear_time_enrollment_df_hr <- 
   merge(x = fitbitdailydata %>% select(ParticipantIdentifier, Date, HeartRateIntradayMinuteCount), 
              y = enrolledparticipants %>% select(ParticipantIdentifier, EnrollmentDate)) %>% 
   mutate(Date = as_date(Date),
@@ -103,7 +107,7 @@ wear_time_enrollment_df <-
   filter(HeartRateIntradayMinuteCount!=0)
 
 avg_wear_time_since_enrollment_per_participant <- 
-  wear_time_enrollment_df %>% 
+  wear_time_enrollment_df_hr %>% 
   group_by(ParticipantIdentifier) %>% 
   filter(Date>=EnrollmentDate) %>% 
   summarise(average_wear_time = mean(HeartRateIntradayMinuteCount)) %>% 
@@ -123,8 +127,43 @@ insights <-
     "n_complete_nonzero_records" = num_records_complete_nonzero(fitbitdailydata, "HeartRateIntradayMinuteCount"),
     "n_participants_with_complete_records" = num_participants_with_records(fitbitdailydata, "HeartRateIntradayMinuteCount"),
     "n_participants_with_complete_nonzero_records" = num_participants_with_records_nonzero(fitbitdailydata, "HeartRateIntradayMinuteCount"),
-    "avg_days_of_complete_nonzero_data" = avg_days_present_nonzero)
+    "avg_days_of_complete_nonzero_data" = avg_days_present_nonzero(days_present_nonzero_per_participant_hr_df, "days_present_nonzero")
+    )
 
-# Fitbit Activity tracker_steps -------------------------------------------
+# Fitbit Activity steps -------------------------------------------
+days_present_nonzero_per_participant_steps_df <- days_present_nonzero_per_participant(fitbitdailydata, "Steps")
 
+kd3 <- density(days_present_nonzero_per_participant_steps_df$days_present_nonzero, bw = "SJ")
+plot(kd3, main = "Number of Days of Data per Participant")
+polygon(kd3, col='lightblue', border='black')
 
+days_enrollment_df_steps <- 
+  merge(x = fitbitdailydata %>% select(ParticipantIdentifier, Date, Steps), 
+        y = enrolledparticipants %>% select(ParticipantIdentifier, EnrollmentDate)) %>% 
+  mutate(Date = as_date(Date),
+         EnrollmentDate = as_date(EnrollmentDate)) %>% 
+  drop_na() %>% 
+  filter(Steps!=0)
+
+# avg_proportion_days_since_enrollment_per_participant <- 
+#   days_enrollment_df_steps %>% 
+#   group_by(ParticipantIdentifier) %>% 
+#   filter(Date>=EnrollmentDate) %>% 
+#   summarise(average_proportion = mean()) %>% 
+#   mutate(average_wear_time_percent = average_wear_time/1439)
+
+insights <- 
+  bind_rows(
+    insights,
+    data.frame(
+      "device" = "fitbit",
+      "category" = "activity",
+      "measure" = "steps",
+      "n_records" = num_records_total(fitbitdailydata, "Steps"),
+      "n_complete_records" = num_records_complete(fitbitdailydata, "Steps"),
+      "n_complete_nonzero_records" = num_records_complete_nonzero(fitbitdailydata, "Steps"),
+      "n_participants_with_complete_records" = num_participants_with_records(fitbitdailydata, "Steps"),
+      "n_participants_with_complete_nonzero_records" = num_participants_with_records_nonzero(fitbitdailydata, "Steps"),
+      "avg_days_of_complete_nonzero_data" = avg_days_present_nonzero(days_present_nonzero_per_participant(fitbitdailydata, "Steps"), "days_present_nonzero")
+    )
+  )
