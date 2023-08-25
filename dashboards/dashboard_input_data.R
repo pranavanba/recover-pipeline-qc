@@ -31,8 +31,10 @@ fitbitdailydata <-
   collect() %>% 
   mutate(HeartRateIntradayMinuteCount = as.numeric(HeartRateIntradayMinuteCount),
          Steps = as.numeric(Steps),
-         SpO2_Avg = as.numeric(SpO2_Avg)) %>% 
-  rename(spo2_avg = SpO2_Avg)
+         SpO2_Avg = as.numeric(SpO2_Avg),
+         Hrv_DailyRmssd = as.numeric(Hrv_DailyRmssd)) %>% 
+  rename(spo2_avg = SpO2_Avg,
+         hrv = Hrv_DailyRmssd)
 
 enrolledparticipants <- 
   open_dataset('./parquet/dataset_enrolledparticipants/') %>% 
@@ -219,7 +221,46 @@ insights_spo2 <-
   )
 
 # Fitbit hrv hrv ----------------------------------------------------------
+days_present_nonzero_per_participant_hrv_df <- days_present_nonzero_per_participant(fitbitdailydata, "hrv")
 
+kd7 <- density(days_present_nonzero_per_participant_hrv_df$days_present_nonzero, bw = "SJ")
+plot(kd7, main = "Number of Days of Data per Participant", sub = "hrv")
+polygon(kd7, col='lightblue', border='black')
+
+days_enrollment_df_hrv <- 
+  merge(x = fitbitdailydata %>% select(ParticipantIdentifier, Date, hrv), 
+        y = enrolledparticipants %>% select(ParticipantIdentifier, EnrollmentDate)) %>% 
+  mutate(Date = as_date(Date),
+         EnrollmentDate = as_date(EnrollmentDate)) %>% 
+  drop_na() %>% 
+  filter(hrv!=0)
+
+proportion_days_since_enrollment_per_participant_hrv <-
+  days_enrollment_df_hrv %>%
+  group_by(ParticipantIdentifier) %>%
+  filter(Date>=EnrollmentDate) %>%
+  summarise(n_days = n(),
+            dt = as.numeric(max(Date)-min(EnrollmentDate)+1)) %>% 
+  mutate(adherence_proportion = n_days/dt)
+
+kd8 <- density(proportion_days_since_enrollment_per_participant_hrv$adherence_proportion, bw = "ucv")
+plot(kd8, main = "Proportion of Number of Days of Data Since Enrollment per Participant", sub = "hrv")
+polygon(kd8, col='lightblue', border='black')
+
+insights_hrv <- 
+  data.frame(
+    "device" = "fitbit",
+    "category" = "hrv",
+    "measure" = "hrv",
+    "n_records" = num_records_total(fitbitdailydata, "hrv"),
+    "n_complete_records" = num_records_complete(fitbitdailydata, "hrv"),
+    "n_complete_nonzero_records" = num_records_complete_nonzero(fitbitdailydata, "hrv"),
+    "n_participants_with_complete_records" = num_participants_with_records(fitbitdailydata, "hrv"),
+    "n_participants_with_complete_nonzero_records" = num_participants_with_records_nonzero(fitbitdailydata, "hrv"),
+    "avg_days_of_complete_nonzero_data" = avg_days_present_nonzero(days_present_nonzero_per_participant(fitbitdailydata, "hrv"), "days_present_nonzero"),
+    "avg_n_days_since_enrollment_all_participants" = mean(proportion_days_since_enrollment_per_participant_hrv$n_days),
+    "avg_proportion_n_days_since_enrollment_all_participants" = mean(proportion_days_since_enrollment_per_participant_hrv$adherence_proportion)
+  )
 
 # Insights df -------------------------------------------------------------
-insights <- bind_rows(insights_hr, insights_steps, insights_spo2)
+insights <- bind_rows(insights_hr, insights_steps, insights_spo2, insights_hrv)
