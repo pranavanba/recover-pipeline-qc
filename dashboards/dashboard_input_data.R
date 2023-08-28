@@ -113,19 +113,46 @@ wear_time_enrollment_df_hr <-
              y = enrolledparticipants %>% select(ParticipantIdentifier, EnrollmentDate)) %>% 
   mutate(Date = as_date(Date),
          EnrollmentDate = as_date(EnrollmentDate)) %>% 
-  drop_na() %>% 
-  filter(HeartRateIntradayMinuteCount!=0)
+  drop_na()
 
-avg_wear_time_since_enrollment_per_participant <- 
+avg_nonzero_wear_time_since_enrollment_per_participant <- 
+  wear_time_enrollment_df_hr %>% 
+  filter(HeartRateIntradayMinuteCount!=0) %>% 
+  group_by(ParticipantIdentifier) %>% 
+  filter(Date>=EnrollmentDate) %>% 
+  summarise(average_wear_time = mean(HeartRateIntradayMinuteCount)) %>% 
+  mutate(average_wear_time_percent = average_wear_time/1439)
+
+avg_total_wear_time_since_enrollment_per_participant <- 
   wear_time_enrollment_df_hr %>% 
   group_by(ParticipantIdentifier) %>% 
   filter(Date>=EnrollmentDate) %>% 
   summarise(average_wear_time = mean(HeartRateIntradayMinuteCount)) %>% 
   mutate(average_wear_time_percent = average_wear_time/1439)
 
-kd2 <- density(avg_wear_time_since_enrollment_per_participant$average_wear_time_percent, bw = "SJ")
-plot(kd2, main = "Average Wear Time Since Enrollment", sub = "HeartRate: HeartRateIntradayMinuteCount")
-polygon(kd2, col='lightblue', border='black')
+kd2_1 <- density(avg_nonzero_wear_time_since_enrollment_per_participant$average_wear_time_percent, bw = "SJ")
+plot(kd2_1, main = "Average Non-Zero Wear Time Since Enrollment", sub = "HeartRate: HeartRateIntradayMinuteCount")
+polygon(kd2_1, col='lightblue', border='black')
+
+kd2_2 <- density(avg_total_wear_time_since_enrollment_per_participant$average_wear_time_percent, bw = "SJ")
+plot(kd2_2, main = "Average Total Wear Time Since Enrollment", sub = "HeartRate: HeartRateIntradayMinuteCount")
+polygon(kd2_2, col='lightblue', border='black')
+
+days_enrollment_df_hr <- 
+  merge(x = fitbitdailydata %>% select(ParticipantIdentifier, Date, HeartRateIntradayMinuteCount), 
+        y = enrolledparticipants %>% select(ParticipantIdentifier, EnrollmentDate)) %>% 
+  mutate(Date = as_date(Date),
+         EnrollmentDate = as_date(EnrollmentDate)) %>% 
+  drop_na() %>% 
+  filter(HeartRateIntradayMinuteCount!=0)
+
+proportion_days_since_enrollment_per_participant_hr <-
+  days_enrollment_df_hr %>%
+  group_by(ParticipantIdentifier) %>%
+  filter(Date>=EnrollmentDate) %>%
+  summarise(n_days = n(),
+            dt = as.numeric(max(Date)-min(EnrollmentDate)+1)) %>% 
+  mutate(adherence_proportion = n_days/dt)
 
 insights_hr <- 
   data.frame(
@@ -138,8 +165,12 @@ insights_hr <-
     "n_participants_with_complete_records" = num_participants_with_records(fitbitdailydata, "HeartRateIntradayMinuteCount"),
     "n_participants_with_complete_nonzero_records" = num_participants_with_records_nonzero(fitbitdailydata, "HeartRateIntradayMinuteCount"),
     "avg_days_of_complete_nonzero_data" = avg_days_present_nonzero(days_present_nonzero_per_participant_hr_df, "days_present_nonzero"),
-    "avg_wear_time_since_enrollment_all_participants" = mean(avg_wear_time_since_enrollment_per_participant$average_wear_time),
-    "avg_wear_time_proportion_since_enrollment_all_participants" = mean(avg_wear_time_since_enrollment_per_participant$average_wear_time_percent)
+    "avg_nonzero_wear_time_since_enrollment_all_participants" = mean(avg_nonzero_wear_time_since_enrollment_per_participant$average_wear_time),
+    "avg_nonzero_wear_time_proportion_since_enrollment_all_participants" = mean(avg_nonzero_wear_time_since_enrollment_per_participant$average_wear_time_percent),
+    "avg_total_wear_time_since_enrollment_per_participant" = mean(avg_total_wear_time_since_enrollment_per_participant$average_wear_time),
+    "avg_total_wear_time_proportion_since_enrollment_all_participants" = mean(avg_total_wear_time_since_enrollment_per_participant$average_wear_time_percent),
+    "avg_n_days_since_enrollment_all_participants" = mean(proportion_days_since_enrollment_per_participant_hr$n_days),
+    "avg_proportion_n_days_since_enrollment_all_participants" = mean(proportion_days_since_enrollment_per_participant_hr$adherence_proportion)
     )
 
 # Fitbit Activity steps -------------------------------------------
