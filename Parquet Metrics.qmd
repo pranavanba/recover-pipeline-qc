@@ -346,13 +346,15 @@ write.csv(pq_pids_by_googlefit, './rendered_dfs/parquet_pids_by_googlefit.csv')
 ### HealthKit
 
 ```{r}
+#| include: false
+
 pq_large_pids_by_hk <- 
   hk_devices %>% 
   group_by(Device_Model, Device_HardwareVersion, Source_Identifier) %>% 
   summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep') %>% 
   arrange(desc(n_participants)) %>% 
   ungroup()
-pq_large_pids_by_hk
+# pq_large_pids_by_hk
 write.csv(pq_large_pids_by_hk, './rendered_dfs/parquet_large_pids_by_hk.csv')
 ```
 
