@@ -9,7 +9,6 @@ format:
     df-print: paged
 execute:
   echo: false
-  cache: true
 ---
 
 ```{r}
@@ -59,7 +58,6 @@ system(sync_cmd)
 
 ```{r}
 #| output: false
-#| cache-lazy: false
 
 enrolled <- arrow::open_dataset('./parquet/dataset_enrolledparticipants/') %>% collect()
 enrolled_symptoms <- arrow::open_dataset('./parquet/dataset_enrolledparticipants_customfields_symptoms/') %>% collect()
