@@ -296,6 +296,7 @@ pq_pids_by_dataset <-
   all_participants_by_dataset %>% 
   group_by(dataset) %>% 
   summarise(n_participants = n_distinct(ParticipantIdentifier))
+pq_pids_by_dataset <- pq_pids_by_dataset[match(c("fitbit", "healthkit", "googlefit", "symptomlog", "enrolledparticipants"), pq_pids_by_dataset$dataset), ]
 pq_pids_by_dataset
 write.csv(pq_pids_by_dataset, './rendered_dfs/parquet_pids_by_dataset.csv')
 ```
@@ -446,3 +447,33 @@ pq_device_pids_mismatch_fitbit
 write.csv(pq_device_pids_mismatch_fitbit, './rendered_dfs/parquet_device_pids_mismatch_fitbit.csv')
 ```
 :::
+
+## Current State of Data
+
+```{r}
+row_vals <- c("Participants", "Watch/Tracker", "TotalRecords")
+col_vals <- c("Fitbit", "HealthKit", "GoogleFit", "Symptoms", "Total")
+
+curr_state <- matrix(data = NA, nrow = length(row_vals), ncol = length(col_vals))
+rownames(curr_state) <- row_vals
+colnames(curr_state) <- col_vals
+
+curr_state[1,] <- pq_pids_by_dataset$n_participants
+
+curr_state[2, 1] <- pq_pids_by_fitbit_devices$n_participants[which(pq_pids_by_fitbit_devices$Type=="TRACKER"&pq_pids_by_fitbit_devices$Device!="MobileTrack")] %>% sum()
+curr_state[2, 2] <- pq_filtered_pids_by_hk$n_participants[which(grepl("Watch*", pq_filtered_pids_by_hk$Source))] %>% sum()
+curr_state[2, 3] <- pq_pids_by_googlefit$n_participants[which(pq_pids_by_googlefit$DeviceType=="WATCH")] %>% sum()
+curr_state[2, 4] <- NA
+curr_state[2, 5] <- curr_state[2, 1] + curr_state[2, 2] + curr_state[2, 3]
+
+curr_state[3, 1] <- pq_n_records$n_records[which(grepl("dataset_fitbit*", pq_n_records$dataset))] %>% sum()
+curr_state[3, 2] <- pq_n_records$n_records[which(grepl("dataset_healthkitv2*", pq_n_records$dataset))] %>% sum()
+curr_state[3, 3] <- pq_n_records$n_records[which(grepl("dataset_google*", pq_n_records$dataset))] %>% sum()
+curr_state[3, 4] <- pq_n_records$n_records[which(grepl("dataset_symptomlog*", pq_n_records$dataset))] %>% sum()
+curr_state[3, 5] <- curr_state[3, 1] + curr_state[3, 2] + curr_state[3, 3] + curr_state[3, 4]
+
+curr_state <- curr_state %>% as.data.frame()
+curr_state
+write.csv(curr_state, './rendered_dfs/current_state_of_data.csv')
+```
+
