@@ -89,32 +89,6 @@ hk_workouts_events <- arrow::open_dataset('./parquet/dataset_healthkitv2workouts
 symptomlog <- arrow::open_dataset('./parquet/dataset_symptomlog/') %>% collect()
 symptomlog_symptoms <- arrow::open_dataset('./parquet/dataset_symptomlog_value_symptoms/') %>% collect()
 symptomlog_treatments <- arrow::open_dataset('./parquet/dataset_symptomlog_value_treatments//') %>% collect()
-
-all_datasets <- list(
-  enrolled = enrolled,
-  enrolled_symptoms = enrolled_symptoms,
-  enrolled_treatments = enrolled_treatments,
-  fitbit_actlogs = fitbit_actlogs,
-  fitbit_dailydata = fitbit_dailydata,
-  fitbit_devices = fitbit_devices,
-  fitbit_intracomb = fitbit_intracomb,
-  fitbit_rhr = fitbit_rhr,
-  fitbit_sleeplogs = fitbit_sleeplogs,
-  fitbit_sleeplogdetail = fitbit_sleeplogdetail,
-  googlefit = googlefit,
-  hk_activitysummaries = hk_activitysummaries,
-  hk_ecg = hk_ecg,
-  hk_ecg_subsamples = hk_ecg_subsamples,
-  hk_heartbeat = hk_heartbeat,
-  hk_heartbeat_subsamples = hk_heartbeat_subsamples,
-  hk_samples = hk_samples,
-  hk_stats = hk_stats,
-  hk_workouts = hk_workouts,
-  hk_workouts_events = hk_workouts_events,
-  symptomlog = symptomlog,
-  symptomlog_symptoms = symptomlog_symptoms,
-  symptomlog_treatments = symptomlog_treatments
-)
 ```
 
 
