@@ -399,10 +399,6 @@ pq_filtered_pids_by_hk <-
       Source_Identifier
     )
   )) %>%
-  mutate(Source = case_when(
-    Source == 'com.apple.health' ~ 'com.apple.health (non-native)',
-    TRUE ~ Source
-  )) %>%
   group_by(Source) %>%
   summarise(n_participants = n_distinct(ParticipantIdentifier), .groups = 'keep') %>%
   arrange(desc(n_participants)) %>% 
