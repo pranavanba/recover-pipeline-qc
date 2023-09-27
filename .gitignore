@@ -12,3 +12,4 @@ input_data_unzipped
 *_cache
 rendered_dfs
 *.html
+synstore-results.R
