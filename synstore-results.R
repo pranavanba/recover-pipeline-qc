@@ -9,5 +9,5 @@ synStore(File('./Parquet Metrics.html', parent='syn52202326'),
 file_names <- list.files('./rendered_dfs', pattern = '\\.csv$', full.names = TRUE)
 for (file in file_names) {
   url <- paste0(executed_url, '?raw=true')
-  synStore(File(file, parent='syn52203469'), executed=url)
+  synStore(File(file, parent='syn52203469'), executed=executed_url)
 }
