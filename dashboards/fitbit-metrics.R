@@ -106,7 +106,8 @@ avg_days_present_nonzero <- function(df, col) {
 }
 
 # Fitbit HeartRate HeartRateIntradayMinuteCount ---------------------------
-days_present_nonzero_per_participant_hr_df <- days_present_nonzero_per_participant(fitbitdailydata, "HeartRateIntradayMinuteCount")
+days_present_nonzero_per_participant_hr_df <- 
+  days_present_nonzero_per_participant(fitbitdailydata, "HeartRateIntradayMinuteCount")
 
 kd <- density(days_present_nonzero_per_participant_hr_df$days_present_nonzero, bw = "SJ")
 plot(kd, main = "Number of Days of Data per Participant", sub = "HeartRate: HeartRateIntradayMinuteCount")
