@@ -127,9 +127,9 @@ avg_total_wear_time_since_enrollment_per_participant <-
     avg_wear_time_mins = round(sum(HeartRateIntradayMinuteCount)/as.numeric(first(days)), 3), 
     avg_wear_time_percent = round((sum(HeartRateIntradayMinuteCount)/as.numeric(first(days)))/1439, 3))
 
-kd2_2 <- density(avg_total_wear_time_since_enrollment_per_participant$avg_wear_time_percent, bw = "SJ")
-plot(kd2_2, main = "Average Total Wear Time Since Enrollment", sub = "HeartRate: HeartRateIntradayMinuteCount")
-polygon(kd2_2, col='lightblue', border='black')
+kd2 <- density(avg_total_wear_time_since_enrollment_per_participant$avg_wear_time_percent, bw = "SJ")
+plot(kd2, main = "Average Total Wear Time Since Enrollment", sub = "HeartRate: HeartRateIntradayMinuteCount")
+polygon(kd2, col='lightblue', border='black')
 
 days_enrollment_df_hr <- 
   merge(x = fitbitdailydata %>% select(ParticipantIdentifier, Date, HeartRateIntradayMinuteCount), 
