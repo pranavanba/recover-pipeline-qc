@@ -292,3 +292,10 @@ insights_hrv <-
 
 # Insights df -------------------------------------------------------------
 insights <- bind_rows(insights_hr, insights_steps, insights_spo2, insights_hrv)
+
+fitbit_data_metrics <- 
+  data.frame(Type = insights$category, 
+             Participants = insights$n_participants_with_complete_nonzero_records,
+             Records = insights$n_complete_nonzero_records, 
+             Average_Days_and_Since_Enrollment = paste(round(insights$avg_days_of_complete_nonzero_data, 1), '(', round(insights$avg_n_days_since_enrollment_all_participants, 1), ')'), 
+             Proportion_Days_Present_Since_Enrollment = round(insights$avg_proportion_n_days_since_enrollment_all_participants, 3))
