@@ -120,26 +120,18 @@ wear_time_enrollment_df_hr <-
          EnrollmentDate = as_date(EnrollmentDate)) %>% 
   drop_na()
 
-avg_nonzero_wear_time_since_enrollment_per_participant <- 
-  wear_time_enrollment_df_hr %>% 
-  filter(HeartRateIntradayMinuteCount!=0) %>% 
-  group_by(ParticipantIdentifier) %>% 
-  filter(Date>=EnrollmentDate) %>% 
-  summarise(average_wear_time = mean(HeartRateIntradayMinuteCount)) %>% 
-  mutate(average_wear_time_percent = average_wear_time/1439)
-
 avg_total_wear_time_since_enrollment_per_participant <- 
   wear_time_enrollment_df_hr %>% 
-  group_by(ParticipantIdentifier) %>% 
   filter(Date>=EnrollmentDate) %>% 
-  summarise(average_wear_time = mean(HeartRateIntradayMinuteCount)) %>% 
-  mutate(average_wear_time_percent = average_wear_time/1439)
+  group_by(ParticipantIdentifier) %>% 
+  mutate(last_date = max(Date)) %>% 
+  mutate(days = last_date-EnrollmentDate+1) %>% 
+  mutate(n = n()) %>% 
+  summarise(
+    avg_wear_time_mins = round(sum(HeartRateIntradayMinuteCount)/as.numeric(first(days)), 3), 
+    avg_wear_time_percent = round((sum(HeartRateIntradayMinuteCount)/as.numeric(first(days)))/1439, 3))
 
-kd2_1 <- density(avg_nonzero_wear_time_since_enrollment_per_participant$average_wear_time_percent, bw = "SJ")
-plot(kd2_1, main = "Average Non-Zero Wear Time Since Enrollment", sub = "HeartRate: HeartRateIntradayMinuteCount")
-polygon(kd2_1, col='lightblue', border='black')
-
-kd2_2 <- density(avg_total_wear_time_since_enrollment_per_participant$average_wear_time_percent, bw = "SJ")
+kd2_2 <- density(avg_total_wear_time_since_enrollment_per_participant$avg_wear_time_percent, bw = "SJ")
 plot(kd2_2, main = "Average Total Wear Time Since Enrollment", sub = "HeartRate: HeartRateIntradayMinuteCount")
 polygon(kd2_2, col='lightblue', border='black')
 
@@ -170,12 +162,10 @@ insights_hr <-
     "n_participants_with_complete_records" = num_participants_with_records(fitbitdailydata, "HeartRateIntradayMinuteCount"),
     "n_participants_with_complete_nonzero_records" = num_participants_with_records_nonzero(fitbitdailydata, "HeartRateIntradayMinuteCount"),
     "avg_days_of_complete_nonzero_data" = avg_days_present_nonzero(days_present_nonzero_per_participant_hr_df, "days_present_nonzero"),
-    "avg_nonzero_wear_time_since_enrollment_all_participants" = mean(avg_nonzero_wear_time_since_enrollment_per_participant$average_wear_time),
-    "avg_nonzero_wear_time_proportion_since_enrollment_all_participants" = mean(avg_nonzero_wear_time_since_enrollment_per_participant$average_wear_time_percent),
-    "avg_total_wear_time_since_enrollment_per_participant" = mean(avg_total_wear_time_since_enrollment_per_participant$average_wear_time),
-    "avg_total_wear_time_proportion_since_enrollment_all_participants" = mean(avg_total_wear_time_since_enrollment_per_participant$average_wear_time_percent),
     "avg_n_days_since_enrollment_all_participants" = mean(proportion_days_since_enrollment_per_participant_hr$n_days),
-    "avg_proportion_n_days_since_enrollment_all_participants" = mean(proportion_days_since_enrollment_per_participant_hr$adherence_proportion)
+    "avg_proportion_n_days_since_enrollment_all_participants" = mean(proportion_days_since_enrollment_per_participant_hr$adherence_proportion),
+    "avg_total_wear_time_since_enrollment_all_participants" = mean(avg_total_wear_time_since_enrollment_per_participant$avg_wear_time_mins),
+    "avg_total_wear_time_proportion_since_enrollment_all_participants" = mean(avg_total_wear_time_since_enrollment_per_participant$avg_wear_time_percent)
     )
 
 # Fitbit Activity steps -------------------------------------------
