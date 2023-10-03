@@ -85,7 +85,7 @@ num_participants_with_records_nonzero <- function(df, measure) {
     length()
 }
 
-days_present_nonzero_per_participant <- function(df, measure, enrollment_df) {
+days_present_nonzero_per_participant <- function(df, measure) {
   df %>% 
     select(ParticipantIdentifier, Date, measure) %>% 
     mutate(Date = as_date(Date)) %>% 
@@ -93,10 +93,6 @@ days_present_nonzero_per_participant <- function(df, measure, enrollment_df) {
     filter(.[[measure]]!=0) %>% 
     group_by(ParticipantIdentifier) %>% 
     distinct(Date, .keep_all = T) %>% 
-    # merge(y = (enrollment_df %>% select(ParticipantIdentifier, EnrollmentDate))) %>% 
-    # mutate(EnrollmentDate=as_date(EnrollmentDate)) %>% 
-    # filter(Date>=EnrollmentDate) %>% 
-    # group_by(ParticipantIdentifier) %>% 
     summarise(days_present_nonzero = n()) %>% 
     ungroup()
 }
