@@ -6,31 +6,31 @@ library(dplyr)
 library(arrow)
 library(lubridate)
 
-synLogin()
+synLogin(authToken = Sys.getenv("SYNAPSE_AUTH_TOKEN"))
 
-# token <- synapser::synGetStsStorageToken(
-#   entity = 'syn51406699',
-#   permission = "read_only",
-#   output_format = "json")
-# 
-# PARQUET_BUCKET <- 'recover-processed-data'
-# PARQUET_BUCKET_BASE_KEY <- 'main/parquet/'
-# 
-# if (PARQUET_BUCKET==token$bucket && PARQUET_BUCKET_BASE_KEY==token$baseKey) {
-#   base_s3_uri <- paste0('s3://', token$bucket, '/', token$baseKey)
-# } else {
-#   base_s3_uri <- paste0('s3://', PARQUET_BUCKET, '/', PARQUET_BUCKET_BASE_KEY)
-# }
-# 
-# # configure the environment with AWS token
-# Sys.setenv('AWS_ACCESS_KEY_ID'=token$accessKeyId,
-#            'AWS_SECRET_ACCESS_KEY'=token$secretAccessKey,
-#            'AWS_SESSION_TOKEN'=token$sessionToken)
-# 
-# AWS_PARQUET_DOWNLOAD_LOCATION <- '~/recover-pipeline-qc/parquet/'
-# unlink(AWS_PARQUET_DOWNLOAD_LOCATION, recursive = T, force = T)
-# sync_cmd <- glue::glue('aws s3 sync {base_s3_uri} {AWS_PARQUET_DOWNLOAD_LOCATION} --exclude "*owner.txt*" --exclude "*archive*"')
-# system(sync_cmd)
+token <- synapser::synGetStsStorageToken(
+  entity = 'syn52935439',
+  permission = "read_only",
+  output_format = "json")
+
+PARQUET_BUCKET <- 'recover-main-project'
+PARQUET_BUCKET_BASE_KEY <- 'main/archive/2023-11-10/'
+
+if (PARQUET_BUCKET==token$bucket && PARQUET_BUCKET_BASE_KEY==token$baseKey) {
+  base_s3_uri <- paste0('s3://', token$bucket, '/', token$baseKey)
+} else {
+  base_s3_uri <- paste0('s3://', PARQUET_BUCKET, '/', PARQUET_BUCKET_BASE_KEY)
+}
+
+# configure the environment with AWS token
+Sys.setenv('AWS_ACCESS_KEY_ID'=token$accessKeyId,
+           'AWS_SECRET_ACCESS_KEY'=token$secretAccessKey,
+           'AWS_SESSION_TOKEN'=token$sessionToken)
+
+AWS_PARQUET_DOWNLOAD_LOCATION <- '~/recover-pipeline-qc/parquet/'
+unlink(AWS_PARQUET_DOWNLOAD_LOCATION, recursive = T, force = T)
+sync_cmd <- glue::glue('aws s3 sync {base_s3_uri} {AWS_PARQUET_DOWNLOAD_LOCATION} --exclude "*owner.txt*" --exclude "*archive*"')
+system(sync_cmd)
 
 fitbitdailydata <- 
   open_dataset('./parquet/dataset_fitbitdailydata/') %>% 
